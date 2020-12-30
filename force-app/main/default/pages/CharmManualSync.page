@@ -1,0 +1,17 @@
+<apex:page controller="clsCharmsManualSync" showHeader="false" applyHtmlTag="true" applyBodyTag="false" lightningStylesheets="true" docType="html-5.0"> 
+    <head>
+        <apex:slds />
+    </head> 
+   
+    <apex:form >
+        <apex:outputPanel id="msgPanelMessage">    
+    		<apex:pageMessages ></apex:pageMessages>
+        </apex:outputPanel>
+        <div style="text-align: center;">
+            <br/>
+            <h2 style="padding: 10px 0px; margin: 0;">Sync Charm Health</h2>
+            <br/>
+    	<apex:commandButton id="RunSync" styleClass="slds-vf-button slds-vf-button_brand"  disabled="{!NOT(Running)}" value="Sync" action="{!doSync}" reRender="msgPanelMessage,RunSync" />
+        </div>
+    </apex:form>
+</apex:page>
