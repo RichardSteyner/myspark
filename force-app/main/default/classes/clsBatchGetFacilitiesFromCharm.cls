@@ -24,7 +24,7 @@ public class clsBatchGetFacilitiesFromCharm implements Database.Batchable<clsFac
         system.debug('rvc sys body :' + scope);
         
         for(clsFacilities fc : scope){
-           Facilities__c objF = new Facilities__c( 
+           		Facilities__c objF = new Facilities__c( 
                 address_line1__c = fc.address_line1,
                 address_line2__c = fc.address_line2,
                 city__c = fc.city,
@@ -47,6 +47,6 @@ public class clsBatchGetFacilitiesFromCharm implements Database.Batchable<clsFac
     public void finish(Database.BatchableContext BC){ 
        // database.executeBatch(new clsBatchGetPatientsfromCharm());
        // 
-       database.executeBatch(new clsBatchGetPatientfromCharm2());
+       database.executeBatch(new clsBatchGetPatientfromCharm2(),10);
     }
 }

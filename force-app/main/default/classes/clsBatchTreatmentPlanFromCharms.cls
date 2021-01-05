@@ -3,7 +3,7 @@ public class clsBatchTreatmentPlanFromCharms implements Database.Batchable<accou
    private clsConnectionChram cn = new clsConnectionChram();
    Private RecordType recordType;
    private list<string> lstIds;
-   private list<string>lstTCase;
+   private list<string>lstTCase = new list<string>() ;
     
     public clsBatchTreatmentPlanFromCharms(list<string> Ids){
         lstIds = Ids;
@@ -11,7 +11,7 @@ public class clsBatchTreatmentPlanFromCharms implements Database.Batchable<accou
     }
     
    public List<account> start(Database.BatchableContext BC){
-       return [select id, External_ID__c,PersonContactId,Phone,PersonHomePhone from account where External_ID__c in : lstIds];
+       return [select id, External_ID__c,PersonContactId,Phone,PersonHomePhone,Last_Sync__c from account where External_ID__c in : lstIds];
     }
     
     public void execute(Database.BatchableContext BC, List<account> scope){
@@ -19,8 +19,11 @@ public class clsBatchTreatmentPlanFromCharms implements Database.Batchable<accou
         
        try{
            for(Account ac : scope){
+               dateTime dt =ac.Last_Sync__c; 
+               String xdate =  dt.year()+'-'+dt.month()+'-'+dt.day();
                String idP = ac.External_ID__c;
-               String xparam = '/fhir/patients/'+idP+'/treatmentplan';
+               String subUrl = '?from_date='+xdate;
+               String xparam = '/fhir/patients/'+idP+'/treatmentplan'+subUrl;
                String body = cn.getJSON(xparam,'GET');
                body = body.replaceAll('"system:"', '"xsystem:"');
                
@@ -69,6 +72,7 @@ public class clsBatchTreatmentPlanFromCharms implements Database.Batchable<accou
     }
     
     public void finish(Database.BatchableContext BC){ 
+       
        system.database.executeBatch(new clsBatchTeamCareFromCharms(lstTCase) );
     }
 }

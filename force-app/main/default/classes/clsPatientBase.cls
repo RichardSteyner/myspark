@@ -37,6 +37,7 @@ public class clsPatientBase {
     }
     
      public class caregiver{
+        public String type {get;set;}
         public String first_name{get;set;}
         public String middle_name{get;set;}
         public String last_name{get;set;}
