@@ -4,7 +4,17 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
    private clsConnectionChram cn = new clsConnectionChram();
    Map<String,String> MapFacility = new Map<String,String>();
    list<String> lstPatientIdCharm = new list<String>() ;      
-              
+   RecordType recordTypeAccount, recordTypeRPGuarantor, recordTypeRPCaregiver;
+       
+    public clsBatchGetPatientfromCharm2(){
+        
+     recordTypeAccount = [SELECT Id,Name FROM RecordType WHERE SobjectType='Account' and DeveloperName = 'Business_Account' LIMIT 1];
+     recordTypeRPGuarantor = [SELECT Id,Name FROM RecordType WHERE SobjectType='HealthCloudGA__EhrRelatedPerson__c' and DeveloperName='Guarantor' Limit 1] ; 
+     recordTypeRPCaregiver = [SELECT Id,Name FROM RecordType WHERE SobjectType='HealthCloudGA__EhrRelatedPerson__c' and DeveloperName='Caregiver' Limit 1] ;
+
+        
+    }
+    
    public List<clsPatient> start(Database.BatchableContext BC){        
         
         Long timestamp = long.valueOf('1601557544691') ; //datetime.now().getTime();
@@ -36,12 +46,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
     }
     
    public void execute(Database.BatchableContext BC, List<clsPatient> scope) {
-
-     RecordType recordTypeAccount = [SELECT Id,Name FROM RecordType WHERE SobjectType='Account' and DeveloperName = 'Business_Account' LIMIT 1];
-     RecordType recordTypeContact = [SELECT Id,Name FROM RecordType WHERE SobjectType='Contact' and DeveloperName='Guarantor' Limit 1] ; 
-     RecordType recordTypeContactCaregiver = [SELECT Id,Name FROM RecordType WHERE SobjectType='Contact' and DeveloperName='Caregiver' Limit 1] ;
-
-       
+      
       List<ClsPatientGet> ListPatientGet = new List<ClsPatientGet>();
       String auxbodypatient;
       ClsPatientGet patient;
@@ -50,22 +55,22 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
           
       List<Account> ListAccount = new List<Account>(); 
              
-      Contact ContGuarantor;
-      Map<String,Contact> MapContactGuarantor = new Map<String,Contact>();
+      HealthCloudGA__EhrRelatedPerson__c RelatedPersonGuarantor;
+      Map<String,HealthCloudGA__EhrRelatedPerson__c> MapRelatedPersonGuarantor = new Map<String,HealthCloudGA__EhrRelatedPerson__c>();
              
       IdentityDocument PatientID;
       Map<String,List<IdentityDocument>> MapIdentityDocument = new Map<String,List<IdentityDocument>>();
       
-      Contact ContCaregiver;
-      Map<String,List<Contact>> MapContactCaregivers = new Map<String,List<Contact>>();
+      HealthCloudGA__EhrRelatedPerson__c RelatedPersonCaregiver;
+      Map<String,List<HealthCloudGA__EhrRelatedPerson__c>> MapRelatedPersonCaregivers = new Map<String,List<HealthCloudGA__EhrRelatedPerson__c>>();
             
       for(clsPatient clsp : scope ){
           auxbodypatient = '';
           patient = new ClsPatientGet();
           Acc = new Account();
-          ContGuarantor = null;
+          RelatedPersonGuarantor = null;
           PatientID = null;
-          ContCaregiver = null ;
+          RelatedPersonCaregiver = null ;
           
           try{              
           
@@ -161,43 +166,43 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                   if( PatPatient.caregivers != null ){
                       if(!PatPatient.caregivers.isEmpty()){
                           for(clsPatientBase.caregiver CG : PatPatient.caregivers){
-                              ContCaregiver = new Contact();
+                              RelatedPersonCaregiver = new HealthCloudGA__EhrRelatedPerson__c();
                               if(String.isNotBlank(CG.last_name)){
                                   
-                                  ContCaregiver.Caregiver_Type__c = Integer.valueOf(CG.type);
-                                  ContCaregiver.FirstName = CG.first_name;
-                                  ContCaregiver.MiddleName = CG.middle_name;
-                                  ContCaregiver.LastName = CG.last_name;
-                                  ContCaregiver.Birthdate = String.IsNotBlank(CG.dob) ? Date.valueOf(CG.dob) : null ;
-                                  ContCaregiver.HealthCloudGA__Gender__c = String.isNotBlank(CG.gender) ? CG.gender.Capitalize() : '';
-                                  ContCaregiver.SSN__c = CG.ssn;
-                                  ContCaregiver.Relationship__c=CG.relationship;                                 
-                                  ContCaregiver.ExtCaregiver_PatIdTypeId__c = PatPatient.patient_id+'_'+CG.type;
+                                  RelatedPersonCaregiver.Caregiver_Type__c = Integer.valueOf(CG.type);
+                                  RelatedPersonCaregiver.FirstName__c = CG.first_name;
+                                  RelatedPersonCaregiver.MiddleName__c = CG.middle_name;
+                                  RelatedPersonCaregiver.LastName__c = CG.last_name;
+                                  RelatedPersonCaregiver.HealthCloudGA__BirthDate__c = String.IsNotBlank(CG.dob) ? Date.valueOf(CG.dob) : null ;
+                                  RelatedPersonCaregiver.HealthCloudGA__Gender__c = String.isNotBlank(CG.gender) ? CG.gender.Capitalize() : '';
+                                  RelatedPersonCaregiver.SSN__c = CG.ssn;
+                                  RelatedPersonCaregiver.HealthCloudGA__Relationship__c=CG.relationship;                                 
+                                  RelatedPersonCaregiver.Caregiver_ExtId_PatIdTypeId__c = PatPatient.patient_id+'_'+CG.type;
                                   
                                   if(CG.address != null){
-                                      ContCaregiver.MailingStreet = CG.address.address_line1;
-                                      ContCaregiver.OtherStreet = CG.address.address_line2;
-                                      ContCaregiver.MailingCity = ContCaregiver.OtherCity =  CG.address.city;
-                                      ContCaregiver.MailingState = ContCaregiver.OtherState = CG.address.state;
-                                      ContCaregiver.MailingCountry = ContCaregiver.OtherCountry = CG.address.country;
-                                      ContCaregiver.MailingPostalCode = ContCaregiver.OtherPostalCode = CG.address.zip_code;                        
+                                      RelatedPersonCaregiver.HealthCloudGA__Address1Line1__c = CG.address.address_line1;
+                                      RelatedPersonCaregiver.HealthCloudGA__Address1Line2__c = CG.address.address_line2;
+                                      RelatedPersonCaregiver.HealthCloudGA__Address1City__c  =  CG.address.city;
+                                      RelatedPersonCaregiver.HealthCloudGA__Address1State__c = CG.address.state;
+                                      RelatedPersonCaregiver.HealthCloudGA__Address1Country__c = CG.address.country;
+                                      RelatedPersonCaregiver.HealthCloudGA__Address1PostalCode__c = CG.address.zip_code;                        
                                   } 
                                   
                                   if(CG.contact != null){
-                                      ContCaregiver.MobilePhone = CG.contact.mobile;
-                                      ContCaregiver.HomePhone = CG.contact.home_phone;
-                                      ContCaregiver.Work_Phone__c = CG.contact.work_phone;
-                                      ContCaregiver.Work_Phone_Extn__c = CG.contact.work_phone_extn;
-                                      ContCaregiver.Email = CG.contact.email;
+                                      RelatedPersonCaregiver.Mobile_Phone__c = CG.contact.mobile;
+                                      RelatedPersonCaregiver.Home_Phone__c = CG.contact.home_phone;
+                                      RelatedPersonCaregiver.Work_Phone__c = CG.contact.work_phone;
+                                      RelatedPersonCaregiver.Work_Phone_Extn__c = CG.contact.work_phone_extn;
+                                      RelatedPersonCaregiver.Email__c = CG.contact.email;
                                   }
                                     
-                                  ContCaregiver.RecordTypeId = recordTypeContactCaregiver.Id;
+                                  RelatedPersonCaregiver.RecordTypeId = recordTypeRPCaregiver.Id;
                                   
-                                  if(MapContactCaregivers.get(PatPatient.patient_id) == null){
-                                      MapContactCaregivers.put(PatPatient.patient_id, new List<Contact>());
+                                  if(MapRelatedPersonCaregivers.get(PatPatient.patient_id) == null){
+                                      MapRelatedPersonCaregivers.put(PatPatient.patient_id, new List<HealthCloudGA__EhrRelatedPerson__c>());
                                   }
                                   
-                                  MapContactCaregivers.get(PatPatient.patient_id).add(ContCaregiver);                                  
+                                  MapRelatedPersonCaregivers.get(PatPatient.patient_id).add(RelatedPersonCaregiver);                                  
                                   
                               }
                           }
@@ -206,34 +211,34 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                   
                   //guarantor
                   if(PatPatient.guarantor != null){
-                      ContGuarantor = new Contact();
-                      ContGuarantor.FirstName = PatPatient.guarantor.first_name;
-                      ContGuarantor.MiddleName = PatPatient.guarantor.middle_name;
-                      ContGuarantor.LastName = PatPatient.guarantor.last_name;
-                      ContGuarantor.Birthdate = String.IsNotBlank(PatPatient.guarantor.dob) ? Date.valueOf(PatPatient.guarantor.dob) : null ;
-                      ContGuarantor.HealthCloudGA__Gender__c = String.isNotBlank(PatPatient.guarantor.gender) ? PatPatient.guarantor.gender.Capitalize() : '';
-                      ContGuarantor.SSN__c = PatPatient.guarantor.ssn;
-                      ContGuarantor.Relationship__c = PatPatient.guarantor.relationship;
+                      RelatedPersonGuarantor = new HealthCloudGA__EhrRelatedPerson__c();
+                      RelatedPersonGuarantor.FirstName__c = PatPatient.guarantor.first_name;
+                      RelatedPersonGuarantor.MiddleName__c = PatPatient.guarantor.middle_name;
+                      RelatedPersonGuarantor.LastName__c = PatPatient.guarantor.last_name;
+                      RelatedPersonGuarantor.HealthCloudGA__BirthDate__c = String.IsNotBlank(PatPatient.guarantor.dob) ? Date.valueOf(PatPatient.guarantor.dob) : null ;
+                      RelatedPersonGuarantor.HealthCloudGA__Gender__c = String.isNotBlank(PatPatient.guarantor.gender) ? PatPatient.guarantor.gender.Capitalize() : '';
+                      RelatedPersonGuarantor.SSN__c = PatPatient.guarantor.ssn;
+                      RelatedPersonGuarantor.HealthCloudGA__Relationship__c = PatPatient.guarantor.relationship;
                       
                       if(PatPatient.guarantor.address != null){
-                          ContGuarantor.MailingStreet = PatPatient.guarantor.address.address_line1;
-                          ContGuarantor.OtherStreet = PatPatient.guarantor.address.address_line2;
-                          ContGuarantor.MailingCity = ContGuarantor.OtherCity =  PatPatient.guarantor.address.city;
-                          ContGuarantor.MailingState = ContGuarantor.OtherState = PatPatient.guarantor.address.state;
-                          ContGuarantor.MailingCountry = ContGuarantor.OtherCountry = PatPatient.guarantor.address.country;
-                          ContGuarantor.MailingPostalCode = ContGuarantor.OtherPostalCode = PatPatient.guarantor.address.zip_code;                        
+                          RelatedPersonGuarantor.HealthCloudGA__Address1Line1__c = PatPatient.guarantor.address.address_line1;
+                          RelatedPersonGuarantor.HealthCloudGA__Address1Line2__c = PatPatient.guarantor.address.address_line2;
+                          RelatedPersonGuarantor.HealthCloudGA__Address1City__c  =  PatPatient.guarantor.address.city;
+                          RelatedPersonGuarantor.HealthCloudGA__Address1State__c  = PatPatient.guarantor.address.state;
+                          RelatedPersonGuarantor.HealthCloudGA__Address1Country__c  = PatPatient.guarantor.address.country;
+                          RelatedPersonGuarantor.HealthCloudGA__Address1PostalCode__c  = PatPatient.guarantor.address.zip_code;                        
                       } 
                       
                       if(PatPatient.guarantor.contact != null){
-                          ContGuarantor.MobilePhone = PatPatient.guarantor.contact.mobile;
-                          ContGuarantor.HomePhone = PatPatient.guarantor.contact.home_phone;
-                          ContGuarantor.Work_Phone__c = PatPatient.guarantor.contact.work_phone;
-                          ContGuarantor.Work_Phone_Extn__c = PatPatient.guarantor.contact.work_phone_extn;
-                          ContGuarantor.Email = PatPatient.guarantor.contact.email;
+                          RelatedPersonGuarantor.Mobile_Phone__c = PatPatient.guarantor.contact.mobile;
+                          RelatedPersonGuarantor.Home_Phone__c = PatPatient.guarantor.contact.home_phone;
+                          RelatedPersonGuarantor.Work_Phone__c = PatPatient.guarantor.contact.work_phone;
+                          RelatedPersonGuarantor.Work_Phone_Extn__c = PatPatient.guarantor.contact.work_phone_extn;
+                          RelatedPersonGuarantor.Email__c = PatPatient.guarantor.contact.email;
                       }
 						
-                      ContGuarantor.RecordTypeId = recordTypeContact.Id;
-                      if (String.isNotBlank(ContGuarantor.LastName)) MapContactGuarantor.put(PatPatient.patient_id,ContGuarantor); //RESTRIC
+                      RelatedPersonGuarantor.RecordTypeId = recordTypeRPGuarantor.Id;
+                      MapRelatedPersonGuarantor.put(PatPatient.patient_id,RelatedPersonGuarantor);
                   }                  
                   
                   Acc.Email_Notifications__c = Boolean.valueOf(PatPatient.email_notification) ? 'Yes' : 'No';
@@ -286,52 +291,44 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
        
        for(Account A : ListAccount) if( String.isNotBlank(A.Id) ) MapIdCharmAccount.put(A.External_ID__c,A);
        
-       List<AccountContactRelation> ListAccContRelation = new List<AccountContactRelation>();
-           
-       if (!MapIdCharmAccount.isEmpty()) ListAccContRelation.addall([Select Id,AccountId,Account.External_ID__c,ContactId,Contact.RecordTypeId FROM AccountContactRelation WHERE (Contact.RecordTypeId = : recordTypeContact.Id or Contact.RecordTypeId = : recordTypeContactCaregiver.Id ) and Account.External_ID__c in : MapIdCharmAccount.keyset() ]);
-             
-       Map<String,List<Contact>> MapAccountContactsGuarantors = new Map<String,List<Contact>>();
+       //Guarantor
        
-       For (AccountContactRelation ACR:ListAccContRelation) {
-           if (ACR.Contact.RecordTypeId == recordTypeContact.Id){ //Guarantors
-               if(MapAccountContactsGuarantors.get(ACR.Account.External_ID__c) == null ){
-                   MapAccountContactsGuarantors.put(ACR.Account.External_ID__c,new List<Contact>());               
-               }
-                 MapAccountContactsGuarantors.get(ACR.Account.External_ID__c).add(new Contact (Id = ACR.ContactId ));
-           }         
+       Map<String,HealthCloudGA__EhrRelatedPerson__c> MapPatientGuarantor = New Map<String,HealthCloudGA__EhrRelatedPerson__c>();
+       
+       For(HealthCloudGA__EhrRelatedPerson__c RPG : [SELECT HealthCloudGA__Account__c,HealthCloudGA__Account__r.External_ID__c FROM HealthCloudGA__EhrRelatedPerson__c WHERE HealthCloudGA__Account__r.External_ID__c IN : MapIdCharmAccount.keyset() and RecordTypeId = : recordTypeRPGuarantor.Id ]){
+       		if(String.isNotBlank(RPG.HealthCloudGA__Account__c))
+           		if(String.isNotBlank(RPG.HealthCloudGA__Account__r.External_ID__c)) MapPatientGuarantor.put(RPG.HealthCloudGA__Account__r.External_ID__c,RPG);
        }
-           
-       //ContactGuarantor
        
-       List<Contact> ListContactGuarantor = new List<Contact>();
-              
-       for(String AccCharmId : MapContactGuarantor.keyset())
-       {
+       List<HealthCloudGA__EhrRelatedPerson__c> ListRelatedPersonGuarantor = new List<HealthCloudGA__EhrRelatedPerson__c>();
+       for(String AccCharmId : MapRelatedPersonGuarantor.keyset()){
+           
            if(MapIdCharmAccount.get(AccCharmId) != null)
-          	 MapContactGuarantor.get(AccCharmId).AccountId = MapIdCharmAccount.get(AccCharmId).Id ;
+          	 	MapRelatedPersonGuarantor.get(AccCharmId).HealthCloudGA__Account__c = MapIdCharmAccount.get(AccCharmId).Id ;
            
-           if(MapAccountContactsGuarantors.get(AccCharmId) != null)
-               for (Contact Cont2 : MapAccountContactsGuarantors.get(AccCharmId)){
-                   MapContactGuarantor.get(AccCharmId).Id = Cont2.Id;
-               }
+           if(MapRelatedPersonGuarantor.get(AccCharmId) != null)
+               MapRelatedPersonGuarantor.get(AccCharmId).Id = MapPatientGuarantor.get(AccCharmId).Id;
            
-           ListContactGuarantor.add(MapContactGuarantor.get(AccCharmId));
-       }        
+           ListRelatedPersonGuarantor.add(MapRelatedPersonGuarantor.get(AccCharmId));
+           
+       }
        
-     //  if (!ListContactGuarantor.isEmpty()) Upsert ListContactGuarantor;
+ 	if (!ListRelatedPersonGuarantor.isEmpty()) Upsert ListRelatedPersonGuarantor;       
+        
+     //Account - Guarantor
+     List<Account> LisstAccount = new List<Account>();
        
-       List<Account> LisstAccount = new List<Account>();
-       
-       for(Contact Cont3 : ListContactGuarantor ){
-           LisstAccount.add(new Account (Id = Cont3.AccountId,Guarantor__c = Cont3.Id));
+       for(HealthCloudGA__EhrRelatedPerson__c RPG : ListRelatedPersonGuarantor ){
+           LisstAccount.add(new Account (Id = RPG.HealthCloudGA__Account__c,GuarantorRP__c = RPG.Id));
        }
 		
        ApexUtil.isAccountTriggerInvoked = False;
        if (!LisstAccount.IsEmpty()) Update LisstAccount;
        ApexUtil.isAccountTriggerInvoked = True;
+       
               
-       //Caregivers
-       List<Contact> ListContactCaregivers = new List<Contact>();
+     //Caregivers
+    /*   List<Contact> ListContactCaregivers = new List<Contact>();
        for(String AccCharmId : MapContactCaregivers.keySet()){
            if(MapIdCharmAccount.get(AccCharmId) != null){
                for(Contact ContCG : MapContactCaregivers.get(AccCharmId)){
@@ -340,12 +337,12 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                }
            }        
        }
-              
+*/          
       // if (!ListContactCaregivers.isEmpty()) Upsert ListContactCaregivers Contact.ExtCaregiver_PatIdTypeId__c ;
        
      // DELETE CONTACT
      
-     Set<Contact> SetContact = new Set<Contact>();
+   /*  Set<Contact> SetContact = new Set<Contact>();
      Boolean IndDelete; 
      For (AccountContactRelation ACR:ListAccContRelation) {
          IndDelete = True;
@@ -370,7 +367,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
         
          if(IndDelete) SetContact.add(new Contact(Id=ACR.ContactId));
      }
-       
+  */
        
   //   if(!SetContact.isEmpty())  Delete (new List<Contact>(SetContact));
        

@@ -11,49 +11,44 @@ public class clsBatchGetGoalsFromCharm implements Database.Batchable<Case>, Data
     
  
    public List<Case> start(Database.BatchableContext BC){
-   		return [select id, Aux_id__c,Team_Care_From_Charm__c,Account.Last_Sync__c from case where Aux_id__c in :Ids];
+   		return [select id, Aux_id__c,Team_Care_From_Charm__c,HealthCloudGA__DueDate__c from case where Aux_id__c in :Ids];
    }
     
     public void execute(Database.BatchableContext BC, List<Case> scope){
-        
-       list<HealthCloudGA__CarePlanGoal__c> ListGoals = new list<HealthCloudGA__CarePlanGoal__c>() ;
-       for(Case  c : Scope){
+       list<HealthCloudGA__CarePlanGoal__c> ListGoals = new list<HealthCloudGA__CarePlanGoal__c>(); 
+       
+        for(Case c : Scope){
           string s = c.Aux_id__c;
           string[] x =  s.split(':xdt:');
-          mapPatient.put(s, x[0]); 
-           
-          if(!mapCase.containsKey(x[0])){
-              mapCase.put(x[0],new list<case>());
+          string patientId = x[0];
+            
+          date dt = c.HealthCloudGA__DueDate__c;
+          String subUrl = '?to_date='+dt.year()+'-'+dt.month()+'-'+dt.day();
+          String xparam = '/fhir/patients/'+patientId+'/goals'+subUrl;
+          System.debug('xparam : '+ xparam);
+            
+          String body = cn.getJSON(xparam,'GET');
+          body = body.replaceAll('"system:"', '"xsystem:"');
+            
+          clsGoalsList GoalsList = new clsGoalsList(); 
+          GoalsList = (clsGoalsList) JSON.deserialize(body,clsGoalsList.class);
+            
+          integer i=1;              
+          for(clsGoals.Entry en : GoalsList.Data.entry){
+             dateTime due = dateTime.valueOf(en.resource.startDate + ' 00:00:00');
+             long cxid =  due.getTime();
+              
+             HealthCloudGA__CarePlanGoal__c hg = new HealthCloudGA__CarePlanGoal__c();  
+             hg.HealthCloudGA__CarePlan__c = c.id;
+             hg.name= patientId+'_'+i;
+             hg.HealthCloudGA__Description__c = en.resource.description.text;
+             hg.HealthCloudGA__ActivityDate__c = date.valueof(en.resource.startDate);
+           	 hg.External_Id__c = c.id +':xdt:'+ cxid;
+             ListGoals.add(hg);
+             i=i+1;
           }
-          mapCase.get(x[0]).add(c);
-       }
-          for(string id : mapPatient.values()){
-             /*  date dt = mapCase.get(id).Account.Last_Sync__c;
-               String xdate =  dt.year()+'-'+dt.month()+'-'+dt.day();
-               String subUrl = '?from_date='+xdate*/
-               
-               String xparam = '/fhir/patients/'+id+'/goals';
-               String body = cn.getJSON(xparam,'GET');
-               body = body.replaceAll('"system:"', '"xsystem:"');
-               clsGoalsList GoalsList = new clsGoalsList(); 
-           	   GoalsList = (clsGoalsList) JSON.deserialize(body,clsGoalsList.class);
-                             
-               for(clsGoals.Entry en : GoalsList.Data.entry){
-                   
-                   if(mapCase.containsKey(id)){
-                      for(Case cs : mapCase.get(id)){
-                           HealthCloudGA__CarePlanGoal__c hg = new HealthCloudGA__CarePlanGoal__c();  
-                           hg.HealthCloudGA__CarePlan__c = cs.id;
-                           hg.HealthCloudGA__Description__c = en.resource.description.text;
-                           hg.HealthCloudGA__ActivityDate__c = date.valueof(en.resource.startDate);
-                           ListGoals.add(hg);
-                   	  } 
-                   }
-                   
-               }
-           }
-        insert ListGoals;
-             
+        }
+        upsert ListGoals External_Id__c;
     }
     
     public void finish(Database.BatchableContext BC){ 

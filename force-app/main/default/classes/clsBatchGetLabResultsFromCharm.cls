@@ -38,20 +38,51 @@ public class clsBatchGetLabResultsFromCharm implements Database.Batchable<Accoun
             clsLabResultsList jsonLabResults = (clsLabResultsList) JSON.deserialize(body, clsLabResultsList.class);
                               
             for(clsLabResult.Entry en : jsonLabResults.data.entry){
-                //hacer un for para los components    
-                auxLabResult = new HealthCloudGA__EhrMedicationStatement__c();  
-                auxLabResult.HealthCloudGA__Account__c = mapPatientIds.get(eId);
-                auxLabResult.HealthCloudGA__MedicationCode__c = en.resource.code.text;
-                auxLabResult.Charm_Id__c = en.resource.identifier.get(0).value + '-' + en.resource.code.text.toUpperCase();
-                System.debug(auxLabResult);
-                labResults.add(auxLabResult);          
+                //hacer un for para los components
+                if(en.resource.component!=null){
+                    for (clsLabResult.Component comp : en.resource.component) {
+                        auxLabResult = new HealthCloudGA__EhrMedicationStatement__c();  
+                        auxLabResult.HealthCloudGA__Account__c = mapPatientIds.get(eId);
+                        auxLabResult.HealthCloudGA__MedicationCode__c = en.resource.code.text;
+                        auxLabResult.Charm_Id__c = en.resource.identifier.get(0).value + '-' + comp.code.text.toUpperCase();
+                        auxLabResult.Name__c = comp.code.text;
+                        auxLabResult.Effective_Date__c = en.resource.effectiveDateTime;
+                        auxLabResult.Interpretation__c = comp.interpretation!=null ? comp.interpretation.text : null;
+                        auxLabResult.Reference_Range_High__c = comp.getReferenceRangeHigh();
+                        auxLabResult.Reference_Range_Low__c = comp.getReferenceRangeLow();
+                        auxLabResult.Reference_Range_Custom__c = comp.getReferenceRangeCustom();
+                        auxLabResult.Result__c = comp.valueQuantity!=null ? comp.valueQuantity.value : null;
+                        auxLabResult.Unit__c = comp.getUnit();
+                        System.debug(auxLabResult);
+                        labResults.add(auxLabResult);     
+                    }
+                } else if(en.resource.referenceRange!=null || en.resource.interpretation!=null || en.resource.valueQuantity!=null) {
+                    auxLabResult = new HealthCloudGA__EhrMedicationStatement__c();  
+                    auxLabResult.HealthCloudGA__Account__c = mapPatientIds.get(eId);
+                    auxLabResult.HealthCloudGA__MedicationCode__c = en.resource.code.text;
+                    auxLabResult.Charm_Id__c = en.resource.identifier.get(0).value + '-' + en.resource.code.text.toUpperCase();
+                    auxLabResult.Name__c = en.resource.code.text;
+                    auxLabResult.Effective_Date__c = en.resource.effectiveDateTime;
+                    auxLabResult.Interpretation__c = en.resource.interpretation!=null ? en.resource.interpretation.text : null;
+                    auxLabResult.Reference_Range_High__c = en.resource.getReferenceRangeHigh();
+                    auxLabResult.Reference_Range_Low__c = en.resource.getReferenceRangeLow();
+                    auxLabResult.Reference_Range_Custom__c = en.resource.getReferenceRangeCustom();
+                    auxLabResult.Result__c = en.resource.valueQuantity!=null ? en.resource.valueQuantity.value : null;
+                    auxLabResult.Unit__c = en.resource.getUnit();
+                    System.debug(auxLabResult);
+                    labResults.add(auxLabResult);     
+                }            
                     
             }
         }
 
-        //insert labResults;
+        List<Database.UpsertResult> upsertResults = Database.upsert(labResults, HealthCloudGA__EhrMedicationStatement__c.Charm_Id__c, false);
+        for(Database.UpsertResult upsertResult:upsertResults) 
+            if(!upsertResult.isSuccess()) 
+                for(Database.Error upsertError : upsertResult.getErrors()) 
+                    System.debug('clsBatchGetLabResultsFromCharm - Upsert Error: ' + upsertError.getMessage());
               
-     }
+    }
      
     public void finish(Database.BatchableContext BC){ 
        

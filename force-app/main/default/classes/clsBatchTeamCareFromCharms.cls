@@ -47,7 +47,6 @@ public class clsBatchTeamCareFromCharms implements Database.Batchable<Case>, Dat
                 }
            }
        }
-       
        update lstCase;
    }
     
