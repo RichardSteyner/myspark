@@ -52,10 +52,10 @@ public class clsLabResult {
             return null;
         }
 
-        public Decimal getUnit(){
+        public String getUnit(){
             try {
                 if(valueQuantity!=null && valueQuantity.unit!=null)
-                    return Decimal.valueOf(valueQuantity.unit);
+                    return valueQuantity.unit;
             } catch (Exception e) {
                 System.debug(e.getMessage());
             }
@@ -114,10 +114,10 @@ public class clsLabResult {
             return null;
         }
 
-        public Decimal getUnit(){
+        public String getUnit(){
             try {
                 if(valueQuantity!=null && valueQuantity.unit!=null)
-                    return Decimal.valueOf(valueQuantity.unit);
+                    return valueQuantity.unit;
             } catch (Exception e) {
                 System.debug(e.getMessage());
             }

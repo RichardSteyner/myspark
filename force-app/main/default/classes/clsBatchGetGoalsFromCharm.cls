@@ -22,8 +22,8 @@ public class clsBatchGetGoalsFromCharm implements Database.Batchable<Case>, Data
           string[] x =  s.split(':xdt:');
           string patientId = x[0];
             
-          date dt = c.HealthCloudGA__DueDate__c;
-          String subUrl = '?to_date='+dt.year()+'-'+dt.month()+'-'+dt.day();
+          dateTime dt = dateTime.valueOf(c.HealthCloudGA__DueDate__c +' 00:00:00') ;
+          String subUrl = '?to_date='+dt.format('yyyy-MM-dd');
           String xparam = '/fhir/patients/'+patientId+'/goals'+subUrl;
           System.debug('xparam : '+ xparam);
             
