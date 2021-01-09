@@ -10,7 +10,7 @@ public class clsPatientBase {
 	}  
     
      public class qualifier{
-        public String id_qualifier{get;set;}
+        public Integer id_qualifier{get;set;}
         public String id_of_patient{get;set;}
         public String file_id{get;set;}        
     }
@@ -65,5 +65,10 @@ public class clsPatientBase {
     
      public class category{
         public String category_id {get;set;}
+                  
+        public category (String lcategory_id){
+            category_id = lcategory_id;
+        }
+         
     }
 }

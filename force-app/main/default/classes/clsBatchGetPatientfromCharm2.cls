@@ -11,7 +11,6 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
      recordTypeAccount = [SELECT Id,Name FROM RecordType WHERE SobjectType='Account' and DeveloperName = 'IndustriesIndividual' LIMIT 1];
      recordTypeRPGuarantor = [SELECT Id,Name FROM RecordType WHERE SobjectType='HealthCloudGA__EhrRelatedPerson__c' and DeveloperName='Guarantor' Limit 1] ; 
      recordTypeRPCaregiver = [SELECT Id,Name FROM RecordType WHERE SobjectType='HealthCloudGA__EhrRelatedPerson__c' and DeveloperName='Caregiver' Limit 1] ;
-
         
     }
     
@@ -105,13 +104,13 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                           break;
                       }
                   }
-                  
+                   
                   //id_qualifiers
                   
                   if(PatPatient.id_qualifiers != null){
                       for(clsPatientBase.qualifier Q : PatPatient.id_qualifiers){
                           PatientID = new IdentityDocument();
-                          PatientID.IdDocumentType = Q.id_qualifier;
+                          PatientID.IdDocumentType = String.valueOf(Q.id_qualifier);
                           PatientID.File_CharmId__c = Q.file_id;
                           PatientID.Name = Q.id_of_patient;                          
                           PatientID.External_PatientIdTypeID__c = PatPatient.patient_id+'_'+Q.id_qualifier;
@@ -176,7 +175,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                                   RelatedPersonCaregiver.HealthCloudGA__BirthDate__c = String.IsNotBlank(CG.dob) ? Date.valueOf(CG.dob) : null ;
                                   RelatedPersonCaregiver.HealthCloudGA__Gender__c = String.isNotBlank(CG.gender) ? CG.gender.Capitalize() : '';
                                   RelatedPersonCaregiver.SSN__c = CG.ssn;
-                                  RelatedPersonCaregiver.HealthCloudGA__Relationship__c=CG.relationship;                                 
+                                  RelatedPersonCaregiver.Caregiver_Relationship__c=CG.relationship;                                 
                                   RelatedPersonCaregiver.Caregiver_ExtId_PatIdTypeId__c = PatPatient.patient_id+'_'+CG.type;
                                   
                                   if(CG.address != null){
@@ -211,6 +210,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                   
                   //guarantor
                   if(PatPatient.guarantor != null){
+                      if(String.isNotBlank(PatPatient.guarantor.last_name)){   
                       RelatedPersonGuarantor = new HealthCloudGA__EhrRelatedPerson__c();
                       RelatedPersonGuarantor.FirstName__c = PatPatient.guarantor.first_name;
                       RelatedPersonGuarantor.MiddleName__c = PatPatient.guarantor.middle_name;
@@ -218,7 +218,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                       RelatedPersonGuarantor.HealthCloudGA__BirthDate__c = String.IsNotBlank(PatPatient.guarantor.dob) ? Date.valueOf(PatPatient.guarantor.dob) : null ;
                       RelatedPersonGuarantor.HealthCloudGA__Gender__c = String.isNotBlank(PatPatient.guarantor.gender) ? PatPatient.guarantor.gender.Capitalize() : '';
                       RelatedPersonGuarantor.SSN__c = PatPatient.guarantor.ssn;
-                      RelatedPersonGuarantor.HealthCloudGA__Relationship__c = PatPatient.guarantor.relationship;
+                      RelatedPersonGuarantor.Guarantor_Relationship__c = PatPatient.guarantor.relationship;
                       
                       if(PatPatient.guarantor.address != null){
                           RelatedPersonGuarantor.HealthCloudGA__Address1Line1__c = PatPatient.guarantor.address.address_line1;
@@ -239,6 +239,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
 						
                       RelatedPersonGuarantor.RecordTypeId = recordTypeRPGuarantor.Id;
                       MapRelatedPersonGuarantor.put(PatPatient.patient_id,RelatedPersonGuarantor);
+                     }
                   }                  
                   
                   Acc.Email_Notifications__c = Boolean.valueOf(PatPatient.email_notification) ? 'Yes' : 'No';
@@ -255,7 +256,17 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                   Acc.Mother_First_Name__c = PatPatient.mother_first_name;
                   Acc.Mother_Last_Name__c = PatPatient.mother_last_name;
                   Acc.Birth_Order__c = String.IsNotBlank(PatPatient.birth_order) ? Date.valueOf(PatPatient.birth_order) : null ;
+                  
                   //categories
+                  
+                  if(PatPatient.categories !=null){
+                      ACC.Categories__c = '';
+                      for(clsPatientBase.category cat : PatPatient.categories){
+                          ACC.Categories__c += cat.category_id + ';' ;
+                      }
+                      ACC.Categories__c = ACC.Categories__c.removeEnd(';');
+                  }
+                  
                   Acc.Introduction__c = PatPatient.introduction;
                   //source_name
                   //source_value                 
@@ -315,9 +326,9 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
            ListRelatedPersonGuarantor.add(MapRelatedPersonGuarantor.get(AccCharmId));
            
        }
-       
+    ApexUtil.isEhrRelatedPersonTriggerInvoked=False;
  	if (!ListRelatedPersonGuarantor.isEmpty()) Upsert ListRelatedPersonGuarantor;       
-        
+    ApexUtil.isEhrRelatedPersonTriggerInvoked=True;
      //Account - Guarantor
    /*  List<Account> LisstAccount = new List<Account>();
        
@@ -342,8 +353,9 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
            }
        }
         
+      ApexUtil.isEhrRelatedPersonTriggerInvoked = False;
       if(!ListRelatedPersonCaregiver.isEmpty()) Upsert ListRelatedPersonCaregiver HealthCloudGA__EhrRelatedPerson__c.Caregiver_ExtId_PatIdTypeId__c;
-             
+      ApexUtil.isEhrRelatedPersonTriggerInvoked=True;
        
      //DELETE RELATED PERSON
      List<HealthCloudGA__EhrRelatedPerson__c> ListDelRelatedPerson = new List<HealthCloudGA__EhrRelatedPerson__c>();
@@ -401,8 +413,15 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
             database.executeBatch(new clsBatchGetProblemsfromCharm(lstPatientIdCharm));
 			database.executeBatch(new clsBatchGetCCDAFromCharm(lstPatientIdCharm));
 			database.executeBatch(new clsBatchGetVaccinesFromCharm(lstPatientIdCharm));
-            database.executeBatch(new clsBatchTreatmentPlanFromCharms(lstPatientIdCharm));  */
-       		database.executeBatch(new clsBatchGetLabResultsFromCharm(lstPatientIdCharm));  
+            database.executeBatch(new clsBatchTreatmentPlanFromCharms(lstPatientIdCharm));
+			database.executeBatch(new clsBatchAssessmentfromCharm(lstPatientIdCharm));
+			Database.executeBatch(new clsBatchGetLabResultsFromCharm(lstPatientIdCharm));  
+			Database.executeBatch(new clsBatchGetProceduresFromCharm(lstPatientIdCharm)); 
+*/
+       		
+       		
+       
+       Database.executeBatch(new clsBatchGetSmokingStatusFromCharm(lstPatientIdCharm)); 
        
    }
     

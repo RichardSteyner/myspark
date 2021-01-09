@@ -70,7 +70,8 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                 Payment_Start_Date__c,
                 Payment_End_Date__c,
                 Referred_Source__c,
-                Referred_Specific_Source__c
+                Referred_Specific_Source__c,
+              	Categories__c
               from Account where Sync__c = True ];
     }
      public void execute(Database.BatchableContext BC, List<Account> scope) {
@@ -82,11 +83,23 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
          ClsPatientGet PatientResp;
          List<Account> ListAccount = new List<Account>();
          
+         Map<Id,Account> MapAccount = new Map<Id,Account>(scope);
+         
+         Map<String,List<IdentityDocument>> MapAccountIdentityDocument = new Map<String,List<IdentityDocument>>();
+         clsPatientBase.qualifier Qualifier ;
+         
+         for(IdentityDocument IDoc : [SELECT IdDocumentType, File_CharmId__c, Name, External_PatientIdTypeID__c, RelatedLegalEntityId  FROM IdentityDocument WHERE RelatedLegalEntityId IN : MapAccount.keyset() ] ){
+             if(MapAccountIdentityDocument.get(IDoc.RelatedLegalEntityId) == null) MapAccountIdentityDocument.put(IDoc.RelatedLegalEntityId,new List<IdentityDocument>());
+             
+             MapAccountIdentityDocument.get(IDoc.RelatedLegalEntityId).add(IDoc);
+         }
+         
+         
        //  Map<Id,Contact> MapGuarantor = new Map<Id,Contact>();
         // Contact ContGuarantor;
          
          
-         Map<Id,Account> MapAccount = new Map<Id,Account>(scope);
+         
          List<HealthCloudGA__EhrRelatedPerson__c> ListRelatedPerson = [SELECT RecordTypeId,
                                                                        HealthCloudGA__Account__c,
                                                                        Caregiver_Type__c,
@@ -97,6 +110,8 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                                                                        HealthCloudGA__Gender__c,
                                                                        SSN__c,
                                                                        HealthCloudGA__Relationship__c,
+                                                                       Caregiver_Relationship__c,
+                                                                       Guarantor_Relationship__c,
                                                                        Caregiver_ExtId_PatIdTypeId__c,
                                                                        HealthCloudGA__Address1Line1__c,
                                                                        HealthCloudGA__Address1Line2__c,
@@ -145,17 +160,29 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
          }
          */
          
+         List<String> Names;
+         
          for(Account AC : scope ){
              
              body='';
              PatientResp=null;
              Patient = new ClsPatientPost();   
              RelatedPersonGuarantor = new HealthCloudGA__EhrRelatedPerson__c();
-             Caregiver = null;    
+             Caregiver = null; 
+             Qualifier=null;
              
-             Patient.first_name = AC.Name.Split(' ')[0];
-             //Patient.middle_name = AC.MiddleName;
-             Patient.last_name = AC.Name.Split(' ')[1];          
+             Names = AC.Name.Split(' ');
+             if(Names != null && Names.size() >  0 ){
+                 Patient.first_name = Names[0];
+                 //Patient.middle_name = AC.MiddleName;
+                 if(Names.size() == 2) Patient.last_name = AC.Name.Split(' ')[1];  
+                 
+                 if(Names.size() == 3) {
+                     Patient.middle_name = Names[1];
+                     Patient.last_name = Names[2];
+                 }
+             }
+                   
              
              Patient.dob = String.valueOf(AC.DOB__c);
              Patient.gender = AC.Sex__c.ToLowerCase(); 
@@ -173,10 +200,23 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                     Patient.facilities.add(new clsPatientBase.facility(AC.Facility__r.facility_id__c));  
                  }                   
              }                 
+              
              
-             Patient.address = new clsPatientBase.address();
+              //id_qualifiers
+             if(MapAccountIdentityDocument.get(AC.Id) != null){
+                 Patient.id_qualifiers = new list<clsPatientBase.qualifier>();
+                 for(IdentityDocument IDoc: MapAccountIdentityDocument.get(AC.Id)){              
+                 		Qualifier = new clsPatientBase.qualifier();
+                 		Qualifier.id_qualifier = Integer.valueOf(IDoc.IdDocumentType);
+                     	//Qualifier.file_id = IDoc.File_CharmId__c;
+                     	Qualifier.id_of_patient = IDoc.Name;                     
+                     	Patient.id_qualifiers.add(Qualifier);
+                 
+             		}       
+             }                 
              
              if(String.isNotBlank(AC.BillingState)){
+                 Patient.address = new clsPatientBase.address();
                  Patient.address.address_line1 = AC.BillingStreet;
                  Patient.address.address_line2 = AC.ShippingStreet;
                  Patient.address.area = AC.Area__c ;
@@ -186,8 +226,7 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                  Patient.address.country= AC.BillingCountry;
                  Patient.address.zip_code= AC.BillingPostalCode;
                  Patient.address.district=AC.District__c;
-                 //Patient.address.post_box='';
-           
+                 //Patient.address.post_box='';           
              }                       
              
              Patient.mobile = AC.Mobile__c;
@@ -205,32 +244,36 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              if(MapAccountRelatedPersonCaregivers.get(AC.Id) != null){
                  Patient.caregivers = new list<clsPatientBase.caregiver>();
                  for (HealthCloudGA__EhrRelatedPerson__c RPC : MapAccountRelatedPersonCaregivers.get(AC.Id)) {
-                     Caregiver = new clsPatientBase.caregiver ();
-                     Caregiver.first_name = RPC.FirstName__c;
-                     Caregiver.middle_name = RPC.MiddleName__c;
-                     Caregiver.last_name = RPC.LastName__c;
-                     Caregiver.dob = String.valueOf(RPC.HealthCloudGA__BirthDate__c);
-                     Caregiver.ssn = RPC.SSN__c;
-                     Caregiver.relationship = RPC.HealthCloudGA__Relationship__c; 
+                      if(String.isNotBlank(RPC.LastName__c)){
+                         Caregiver = new clsPatientBase.caregiver ();
+                         Caregiver.first_name = RPC.FirstName__c;
+                         Caregiver.middle_name = RPC.MiddleName__c;
+                         Caregiver.last_name = RPC.LastName__c;
+                         Caregiver.dob = String.valueOf(RPC.HealthCloudGA__BirthDate__c);
+                         Caregiver.gender = String.isNotBlank(RPC.HealthCloudGA__Gender__c) ?  RPC.HealthCloudGA__Gender__c.toLowerCase() : null ;
+                         Caregiver.ssn = RPC.SSN__c;
+                         Caregiver.relationship = RPC.Caregiver_Relationship__c; 
+                         
+                         if(String.isNotBlank(RelatedPersonGuarantor.HealthCloudGA__Address1State__c)){
+                             Caregiver.address = new clsPatientBase.address();
+                             Caregiver.address.address_line1 = RPC.HealthCloudGA__Address1Line1__c;
+                             Caregiver.address.address_line2 = RPC.HealthCloudGA__Address1Line2__c;
+                             Caregiver.address.city = RPC.HealthCloudGA__Address1City__c;
+                             Caregiver.address.state = RPC.HealthCloudGA__Address1State__c;
+                             Caregiver.address.country = RPC.HealthCloudGA__Address1Country__c;
+                             Caregiver.address.zip_code = RPC.HealthCloudGA__Address1PostalCode__c;                         
+                         }                    
+                         
+                         Caregiver.contact = new clsPatientBase.contact();
+                         Caregiver.contact.mobile = RPC.Mobile_Phone__c;
+                         Caregiver.contact.home_phone = RPC.Home_Phone__c;
+                         Caregiver.contact.work_phone = RPC.Work_Phone__c;
+                         Caregiver.contact.work_phone_extn = RPC.Work_Phone_Extn__c;
+                         Caregiver.contact.email = RPC.Email__c;
+                         
+                         Patient.caregivers.add(Caregiver);
+                      }
                      
-                     if(String.isNotBlank(RelatedPersonGuarantor.HealthCloudGA__Address1State__c)){
-						 Caregiver.address = new clsPatientBase.address();
-                         Caregiver.address.address_line1 = RPC.HealthCloudGA__Address1Line1__c;
-                         Caregiver.address.address_line2 = RPC.HealthCloudGA__Address1Line2__c;
-                         Caregiver.address.city = RPC.HealthCloudGA__Address1City__c;
-                         Caregiver.address.state = RPC.HealthCloudGA__Address1State__c;
-                         Caregiver.address.country = RPC.HealthCloudGA__Address1Country__c;
-                         Caregiver.address.zip_code = RPC.HealthCloudGA__Address1PostalCode__c;                         
-                     }                    
-                     
-                     Caregiver.contact = new clsPatientBase.contact();
-                     Caregiver.contact.mobile = RPC.Mobile_Phone__c;
-                     Caregiver.contact.home_phone = RPC.Home_Phone__c;
-                     Caregiver.contact.work_phone = RPC.Work_Phone__c;
-                     Caregiver.contact.work_phone_extn = RPC.Work_Phone_Extn__c;
-                     Caregiver.contact.email = RPC.Email__c;
-                     
-                     Patient.caregivers.add(Caregiver);
                  }  
              }
                                       
@@ -239,32 +282,33 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              if(MapAccountRelatedPersonGuarantor.get(AC.Id) != null ){
                  
                 RelatedPersonGuarantor =  MapAccountRelatedPersonGuarantor.get(AC.Id);
-                Patient.guarantor = new clsPatientBase.guarantor();
-                Patient.guarantor.first_name = RelatedPersonGuarantor.FirstName__c;
-                Patient.guarantor.middle_name = RelatedPersonGuarantor.MiddleName__c;
-                Patient.guarantor.last_name = RelatedPersonGuarantor.LastName__c;
-				Patient.guarantor.dob = String.valueOf(RelatedPersonGuarantor.HealthCloudGA__BirthDate__c);
-                Patient.guarantor.gender = RelatedPersonGuarantor.HealthCloudGA__Gender__c.toLowerCase();
-                Patient.guarantor.ssn = RelatedPersonGuarantor.SSN__c;
-                Patient.guarantor.relationship = RelatedPersonGuarantor.HealthCloudGA__Relationship__c;
-                
-                if(String.isNotBlank(RelatedPersonGuarantor.HealthCloudGA__Address1State__c)){
-                    Patient.guarantor.address = new clsPatientBase.address();
-                    Patient.guarantor.address.address_line1 = RelatedPersonGuarantor.HealthCloudGA__Address1Line1__c;
-                    Patient.guarantor.address.address_line2 = RelatedPersonGuarantor.HealthCloudGA__Address1Line2__c;
-                    Patient.guarantor.address.city = RelatedPersonGuarantor.HealthCloudGA__Address1City__c;
-                    Patient.guarantor.address.state = RelatedPersonGuarantor.HealthCloudGA__Address1State__c;
-                    Patient.guarantor.address.country = RelatedPersonGuarantor.HealthCloudGA__Address1Country__c;
-                    Patient.guarantor.address.zip_code = RelatedPersonGuarantor.HealthCloudGA__Address1PostalCode__c;
-                 }
-                
-                Patient.guarantor.contact = new clsPatientBase.contact();
-                Patient.guarantor.contact.mobile = RelatedPersonGuarantor.Mobile_Phone__c;
-                Patient.guarantor.contact.home_phone = RelatedPersonGuarantor.Home_Phone__c;
-                Patient.guarantor.contact.work_phone = RelatedPersonGuarantor.Work_Phone__c;
-                Patient.guarantor.contact.work_phone_extn = RelatedPersonGuarantor.Work_Phone_Extn__c;
-                Patient.guarantor.contact.email = RelatedPersonGuarantor.Email__c;            
-                 
+                 if(String.isNotBlank(RelatedPersonGuarantor.LastName__c)){
+                        Patient.guarantor = new clsPatientBase.guarantor();
+                        Patient.guarantor.first_name = RelatedPersonGuarantor.FirstName__c;
+                        Patient.guarantor.middle_name = RelatedPersonGuarantor.MiddleName__c;
+                        Patient.guarantor.last_name = RelatedPersonGuarantor.LastName__c;
+                        Patient.guarantor.dob = String.valueOf(RelatedPersonGuarantor.HealthCloudGA__BirthDate__c);
+                        Patient.guarantor.gender = String.isNotBlank(RelatedPersonGuarantor.HealthCloudGA__Gender__c) ?  RelatedPersonGuarantor.HealthCloudGA__Gender__c.toLowerCase() : null ;
+                        Patient.guarantor.ssn = RelatedPersonGuarantor.SSN__c;
+                        Patient.guarantor.relationship = RelatedPersonGuarantor.Guarantor_Relationship__c;
+                        
+                        if(String.isNotBlank(RelatedPersonGuarantor.HealthCloudGA__Address1State__c)){
+                            Patient.guarantor.address = new clsPatientBase.address();
+                            Patient.guarantor.address.address_line1 = RelatedPersonGuarantor.HealthCloudGA__Address1Line1__c;
+                            Patient.guarantor.address.address_line2 = RelatedPersonGuarantor.HealthCloudGA__Address1Line2__c;
+                            Patient.guarantor.address.city = RelatedPersonGuarantor.HealthCloudGA__Address1City__c;
+                            Patient.guarantor.address.state = RelatedPersonGuarantor.HealthCloudGA__Address1State__c;
+                            Patient.guarantor.address.country = RelatedPersonGuarantor.HealthCloudGA__Address1Country__c;
+                            Patient.guarantor.address.zip_code = RelatedPersonGuarantor.HealthCloudGA__Address1PostalCode__c;
+                         }
+                        
+                        Patient.guarantor.contact = new clsPatientBase.contact();
+                        Patient.guarantor.contact.mobile = RelatedPersonGuarantor.Mobile_Phone__c;
+                        Patient.guarantor.contact.home_phone = RelatedPersonGuarantor.Home_Phone__c;
+                        Patient.guarantor.contact.work_phone = RelatedPersonGuarantor.Work_Phone__c;
+                        Patient.guarantor.contact.work_phone_extn = RelatedPersonGuarantor.Work_Phone_Extn__c;
+                        Patient.guarantor.contact.email = RelatedPersonGuarantor.Email__c;
+                 }   
              }
                
              Patient.preferred_communication = AC.Preferred_Communication__c;
@@ -283,7 +327,15 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              Patient.mother_first_name = AC.Mother_First_Name__c;
              Patient.mother_last_name = AC.Mother_Last_Name__c;
              Patient.birth_order = String.valueOf(AC.Birth_Order__c);
+                          
              //CATEGORIES
+             if(String.isNotBlank(AC.Categories__c)){  
+                 Patient.categories = new list<clsPatientBase.category>();
+                 for(String CAT : AC.Categories__c.Split(';')){
+                     Patient.categories.add(new clsPatientBase.category (CAT) );
+                 }
+             }
+                       
              Patient.introduction = AC.Introduction__c;
              //source_name
              //source_value
@@ -305,7 +357,7 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                     body = cn.postJSON('/patients','POST',JSON.serialize(Patient,True));                 
                  }else{
                     Patient.Record_Id = AC.Record_Id__c;
-                    System.debug('req.body:'+JSON.serialize(Patient,True));
+                    //System.debug('req.body:'+JSON.serializePretty(Patient,True));
                     body = cn.postJSON('/patients/'+AC.External_ID__c,'PUT',JSON.serialize(Patient,True));
                  }
                  
@@ -321,10 +373,10 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                          }
                      }
                  }
-                 
-           }Catch(Exception e){ system.debug('patient_Error :' + e.getMessage()); }    
             
-             ListAccount.add(AC);
+                 ListAccount.add(AC);
+           }Catch(Exception e){ system.debug('patient_Error :' + e.getMessage()); }               
+             
          }
          
         ApexUtil.isAccountTriggerInvoked = False;
