@@ -44,6 +44,7 @@ public class clsBatchGetGoalsFromCharm implements Database.Batchable<Case>, Data
              hg.HealthCloudGA__Description__c = en.resource.description.text;
              hg.HealthCloudGA__ActivityDate__c = date.valueof(en.resource.startDate);
            	 hg.External_Id__c = c.id +':xdt:'+ cxid;
+              
              ListGoals.add(hg);
              i=i+1;
           }

@@ -37,7 +37,8 @@ public class clsBatchGetFacilitiesFromCharm implements Database.Batchable<clsFac
                 office_phone__c = fc.office_phone,
                 state__c = fc.state,
                 Sync_Charm__c = TRUE,
-                zip_code__c = fc.zip_code
+                zip_code__c = fc.zip_code,
+                Activate__c = TRUE 
             );
             lstFacilities.add(objF);
         }
@@ -46,7 +47,7 @@ public class clsBatchGetFacilitiesFromCharm implements Database.Batchable<clsFac
     
     public void finish(Database.BatchableContext BC){ 
        // database.executeBatch(new clsBatchGetPatientsfromCharm());
-       // 
-       database.executeBatch(new clsBatchGetPatientfromCharm2(),10);
+        
+       database.executeBatch(new clsBatchPostPatientToCharm(),10);
     }
 }

@@ -5,18 +5,27 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
    Map<String,String> MapFacility = new Map<String,String>();
    list<String> lstPatientIdCharm = new list<String>() ;      
    RecordType recordTypeAccount, recordTypeRPGuarantor, recordTypeRPCaregiver;
+   DateTime NowTime;
+   Boolean IndPass;
+    
+   SettingCharm__c SettingCharm;  
        
     public clsBatchGetPatientfromCharm2(){
+     IndPass = True;
+     NowTime = datetime.now();
         
      recordTypeAccount = [SELECT Id,Name FROM RecordType WHERE SobjectType='Account' and DeveloperName = 'IndustriesIndividual' LIMIT 1];
      recordTypeRPGuarantor = [SELECT Id,Name FROM RecordType WHERE SobjectType='HealthCloudGA__EhrRelatedPerson__c' and DeveloperName='Guarantor' Limit 1] ; 
      recordTypeRPCaregiver = [SELECT Id,Name FROM RecordType WHERE SobjectType='HealthCloudGA__EhrRelatedPerson__c' and DeveloperName='Caregiver' Limit 1] ;
-        
+     
+     SettingCharm = SettingCharm__c.getOrgDefaults();
+     
+     if(SettingCharm.Modified_time_greater_equals__c == null) SettingCharm.Modified_time_greater_equals__c=NowTime;
     }
     
    public List<clsPatient> start(Database.BatchableContext BC){        
-        
-        Long timestamp = long.valueOf('1601557544691') ; //datetime.now().getTime();
+       
+        Long timestamp = SettingCharm.Modified_time_greater_equals__c.addMinutes(-5).getTime(); //long.valueOf('1601557544691') ; //datetime.now().getTime();
        
         String IdsF = '';
         for(Facilities__c f : [select facility_id__c from Facilities__c where Activate__c = True]){
@@ -31,7 +40,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
         List<clsPatient> auxPatients = new List<clsPatient>();
         integer page = 1;
         
-        do{
+        do{            
             String xparam = '/patients?facility_id='+IdsF+'&modified_time_greater_equals='+timestamp+'&page=' + page ;
             String body = cn.getJSON(xparam,'GET');
             lstPatients = (clsListPatients) JSON.deserialize(body,clsListPatients.class);   
@@ -62,7 +71,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
       
       HealthCloudGA__EhrRelatedPerson__c RelatedPersonCaregiver;
       Map<String,List<HealthCloudGA__EhrRelatedPerson__c>> MapRelatedPersonCaregivers = new Map<String,List<HealthCloudGA__EhrRelatedPerson__c>>();
-            
+                 
       for(clsPatient clsp : scope ){
           auxbodypatient = '';
           patient = new ClsPatientGet();
@@ -132,11 +141,11 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                         Acc.BillingPostalCode = PatPatient.primary_contact_details.zip_code;
                       	
                       	Acc.Address_Line_2__c = PatPatient.primary_contact_details.address_line2;
-                      	Acc.ShippingStreet = PatPatient.primary_contact_details.address_line2;
-                      	Acc.ShippingCity = PatPatient.primary_contact_details.city;
-                        Acc.ShippingCountry = PatPatient.primary_contact_details.country;
-                        Acc.ShippingState = PatPatient.primary_contact_details.state;
-                        Acc.ShippingPostalCode = PatPatient.primary_contact_details.zip_code;
+                       //Acc.ShippingStreet = PatPatient.primary_contact_details.address_line2;
+                       //Acc.ShippingCity = PatPatient.primary_contact_details.city;
+                       //Acc.ShippingCountry = PatPatient.primary_contact_details.country;
+                       //Acc.ShippingState = PatPatient.primary_contact_details.state;
+                       //Acc.ShippingPostalCode = PatPatient.primary_contact_details.zip_code;
                       
                       	Acc.County__c = PatPatient.primary_contact_details.county;
                       	Acc.District__c = PatPatient.primary_contact_details.district;
@@ -241,14 +250,29 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                       MapRelatedPersonGuarantor.put(PatPatient.patient_id,RelatedPersonGuarantor);
                      }
                   }                  
-                  
+                   
                   Acc.Email_Notifications__c = Boolean.valueOf(PatPatient.email_notification) ? 'Yes' : 'No';
                   Acc.Text_Notifications__c = Boolean.valueOf(PatPatient.text_notification) ? 'Yes' : 'No';
                   Acc.Voice_Notifications__c = Boolean.valueOf(PatPatient.voice_notification) ? 'Yes' : 'No';
                   Acc.Blood_Group__c = PatPatient.blood_group;
                   Acc.Primary_Language__c = PatPatient.language;
-                  Acc.Race__c = PatPatient.race;
-                  Acc.Ethnicity__c=PatPatient.ethnicity;
+                  
+                  Acc.Race__c = '' ;
+                  if(String.isnotBlank( PatPatient.race)){
+                      for(String RA : PatPatient.race.split(',')){
+                          Acc.Race__c = RA;
+                          Break;
+                      }
+                  }
+                                   
+                  Acc.Ethnicity__c='';
+                  if(String.isnotBlank(PatPatient.ethnicity)){
+                      For(String ET : PatPatient.ethnicity.SPLIT(',')){
+                          Acc.Ethnicity__c += ET + ';';
+                      }
+                      Acc.Ethnicity__c.removeEnd(';');
+                  }
+                                                   
                   Acc.Smoking_Status__c = PatPatient.smoking_status;
                   Acc.Marital_Status__c = PatPatient.marital_status;
                   Acc.Employment_Status__c = PatPatient.employment_status;
@@ -256,7 +280,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                   Acc.Mother_First_Name__c = PatPatient.mother_first_name;
                   Acc.Mother_Last_Name__c = PatPatient.mother_last_name;
                   Acc.Birth_Order__c = String.IsNotBlank(PatPatient.birth_order) ? Date.valueOf(PatPatient.birth_order) : null ;
-                  
+                   
                   //categories
                   
                   if(PatPatient.categories !=null){
@@ -291,9 +315,12 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
               }      
            }
            catch(Exception e){
+               IndPass = False;
                system.debug('convertP : ' + e.getMessage()); 
+               
            }
-       }
+       }       
+
        ApexUtil.isAccountTriggerInvoked = False;
        if(!ListAccount.isEmpty()) Upsert ListAccount Account.External_ID__c;
        ApexUtil.isAccountTriggerInvoked = True;
@@ -397,7 +424,7 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
                for(IdentityDocument ID : MapIdentityDocument.get(PatientCharmId)){
                    ID.RelatedLegalEntityId = PatientSFId;
                    ListID.add(ID);
-               }
+               } 
            }          
        }
        
@@ -407,7 +434,10 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
     
    public void finish(Database.BatchableContext BC){ 
         
-         	/*database.executeBatch(new clsBatchPostPatientToCharm());            	
+       
+       if(IndPass){           
+        
+            //database.executeBatch(new clsBatchPostPatientToCharm());            	
             database.executeBatch(new clsBatchGetAllergiesfromCharm(lstPatientIdCharm));            
             database.executeBatch(new clsBatchGetMedicationsFromCharm(lstPatientIdCharm));
             database.executeBatch(new clsBatchGetProblemsfromCharm(lstPatientIdCharm));
@@ -416,12 +446,12 @@ public class clsBatchGetPatientfromCharm2 Implements Database.Batchable<clsPatie
             database.executeBatch(new clsBatchTreatmentPlanFromCharms(lstPatientIdCharm));
 			database.executeBatch(new clsBatchAssessmentfromCharm(lstPatientIdCharm));
 			Database.executeBatch(new clsBatchGetLabResultsFromCharm(lstPatientIdCharm));  
-			Database.executeBatch(new clsBatchGetProceduresFromCharm(lstPatientIdCharm)); 
-*/
-       		
-       		
-       
-       Database.executeBatch(new clsBatchGetSmokingStatusFromCharm(lstPatientIdCharm)); 
+			Database.executeBatch(new clsBatchGetProceduresFromCharm(lstPatientIdCharm));
+            Database.executeBatch(new clsBatchGetSmokingStatusFromCharm(lstPatientIdCharm)); 
+                 
+           SettingCharm.Modified_time_greater_equals__c=NowTime;
+           Update SettingCharm;
+       }
        
    }
     

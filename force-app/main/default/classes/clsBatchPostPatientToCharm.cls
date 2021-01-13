@@ -218,7 +218,7 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              if(String.isNotBlank(AC.BillingState)){
                  Patient.address = new clsPatientBase.address();
                  Patient.address.address_line1 = AC.BillingStreet;
-                 Patient.address.address_line2 = AC.ShippingStreet;
+                 Patient.address.address_line2 = AC.Address_Line_2__c;
                  Patient.address.area = AC.Area__c ;
                  Patient.address.city  = AC.BillingCity;
                  Patient.address.state = AC.BillingState;
@@ -319,7 +319,15 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              Patient.blood_group = AC.Blood_Group__c;
              Patient.language = AC.Primary_Language__c;
              Patient.race = AC.Race__c;
-             Patient.ethnicity= AC.Ethnicity__c;
+             
+             if(String.isNotBlank(AC.Ethnicity__c)){ 
+                 Patient.ethnicity='';
+                 for(String ET : AC.Ethnicity__c.Split(';')){
+                     Patient.ethnicity += ET +',';
+                 }
+                 Patient.ethnicity.removeEnd(',');
+             }                 
+             
              Patient.smoking_status= AC.Smoking_Status__c;
              Patient.marital_status = AC.Marital_Status__c;
              Patient.employment_status=AC.Employment_Status__c;
@@ -327,7 +335,7 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              Patient.mother_first_name = AC.Mother_First_Name__c;
              Patient.mother_last_name = AC.Mother_Last_Name__c;
              Patient.birth_order = String.valueOf(AC.Birth_Order__c);
-                          
+                           
              //CATEGORIES
              if(String.isNotBlank(AC.Categories__c)){  
                  Patient.categories = new list<clsPatientBase.category>();
@@ -353,11 +361,11 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
              
              try{        
                 if(String.isBlank(AC.External_ID__c)){   
-                    //System.debug('req.body:'+JSON.serialize(Patient,True));
+                    System.debug('req.body:'+JSON.serialize(Patient,True));
                     body = cn.postJSON('/patients','POST',JSON.serialize(Patient,True));                 
                  }else{
                     Patient.Record_Id = AC.Record_Id__c;
-                    //System.debug('req.body:'+JSON.serializePretty(Patient,True));
+                    System.debug('req.body:'+JSON.serializePretty(Patient,True));
                     body = cn.postJSON('/patients/'+AC.External_ID__c,'PUT',JSON.serialize(Patient,True));
                  }
                  
@@ -375,7 +383,7 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
                  }
             
                  ListAccount.add(AC);
-           }Catch(Exception e){ system.debug('patient_Error :' + e.getMessage()); }               
+          }Catch(Exception e){ system.debug('patient_Error :' + e.getMessage()); }               
              
          }
          
@@ -384,6 +392,6 @@ Global class clsBatchPostPatientToCharm  implements Database.Batchable<Account>,
         ApexUtil.isAccountTriggerInvoked = True;
      }
      public void finish(Database.BatchableContext BC){ 
-         
+          database.executeBatch(new clsBatchGetPatientfromCharm2(),10);
      }
 }

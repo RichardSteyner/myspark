@@ -34,7 +34,7 @@ public class clsBatchGetSmokingStatusFromCharm implements Database.Batchable<Acc
                     accountsUpdate.put(mapPatientIds.get(eId), new Account(Id=mapPatientIds.get(eId),
                                                                             Smoking_Status__c=jsonSmoking.data.valueCodeableConcept.text));
                 }else{
-                    accountsUpdate.put(mapPatientIds.get(eId), new Account(Id=mapPatientIds.get(eId),
+                   accountsUpdate.put(mapPatientIds.get(eId), new Account(Id=mapPatientIds.get(eId),
                                                                             Smoking_Status__c=null));
                 }
                         

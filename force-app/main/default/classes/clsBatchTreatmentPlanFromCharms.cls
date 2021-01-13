@@ -74,5 +74,6 @@ public class clsBatchTreatmentPlanFromCharms implements Database.Batchable<accou
     public void finish(Database.BatchableContext BC){ 
        
        system.database.executeBatch(new clsBatchTeamCareFromCharms(lstTCase) );
+       system.database.executeBatch(new clsBatchGetGoalsFromCharm(lstTCase) );
     }
 }
